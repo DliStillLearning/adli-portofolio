@@ -1,0 +1,99 @@
+body {
+    font-family: var(--font-body);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased
+}
+
+body::selection {
+    background: var(--forest);
+    color: var(--cream)
+}
+
+h1,
+h2,
+h3 {
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: -.045em
+}
+
+h1 {
+    font-size: clamp(3.4rem, 8vw, 7.2rem)
+}
+
+h2 {
+    font-size: clamp(2.5rem, 5vw, 4.7rem)
+}
+
+h3 {
+    font-size: 1.35rem;
+    letter-spacing: -.025em
+}
+
+em {
+    font-family: var(--font-display);
+    font-weight: 400;
+    color: var(--brown);
+    letter-spacing: -.055em
+}
+
+p {
+    color: var(--muted)
+}
+
+a:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--brown);
+    outline-offset: 4px
+}
+
+.eyebrow {
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    line-height: 1.5;
+    color: var(--brown)
+}
+
+.muted {
+    color: var(--muted);
+    font-size: .9rem
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0
+}
+
+.skip-link {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 1000;
+    padding: 10px 14px;
+    background: var(--forest);
+    color: var(--cream);
+    transform: translateY(-150%)
+}
+
+.skip-link:focus {
+    transform: translateY(0)
+}
+
+code {
+    font-family: Consolas, monospace;
+    font-size: .88em;
+    background: var(--cream-deep);
+    padding: .15em .35em;
+    border-radius: 2px
+}

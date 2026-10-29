@@ -1,0 +1,22 @@
+/* Fixed forest/army palette — no user-selectable theme. */
+:root {
+  color-scheme: dark;
+  --forest: #b6c6a6;
+  --forest-deep: #e0e7d6;
+  --cream: #f0eddf;
+  --cream-deep: #344638;
+  --paper: #26392d;
+  --brown: #d0b58a;
+  --brown-soft: #a5b394;
+  --ink: #f0eddf;
+  --muted: #c1cbbb;
+  --line: rgba(225, 232, 214, .16);
+  --white: #2d4234;
+  --shadow: 0 22px 60px rgba(8, 18, 12, .22);
+  --radius: 4px;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: Inter, "Segoe UI", Arial, sans-serif;
+  --container: 1160px;
+  --header-height: 78px;
+  --ease: cubic-bezier(.22, .61, .36, 1)
+}
