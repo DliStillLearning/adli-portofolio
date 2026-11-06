@@ -2,13 +2,21 @@ window.portfolioCertificates = [
   {
     id: "certificate-01",
     title: "Neo One Academy",
-    issuer: "Professional Recognition Certificat as Project Manager",
+    issuer: "Professional Recognition Certificate as Project Manager",
     date: "20/05/2026",
     status: "owned",
     file: "assets/documents/certificates/Muhamad Adli Irawan.pdf"
   },
   {
     id: "certificate-02",
+    title: "Neo One Academy",
+    issuer: "Awarded for Web-Based Project",
+    date: "20/05/2026",
+    status: "owned",
+    file: "assets/documents/certificates/rpl 1 - 10 -web bk smkn 1 cibinong.pdf"
+  },
+  {
+    id: "certificate-03",
     title: "Clevio Camp",
     issuer: "Apresiasi Peserta Lomba Cipta Game Nasional Tahun 2026",
     date: "22/05/2026",
@@ -16,17 +24,17 @@ window.portfolioCertificates = [
     file: "assets/documents/certificates/Muhamad Adli Irawan.png"
   },
   {
-    id: "certificate-03",
+    id: "certificate-04",
     title: "Dicoding",
-    issuer: "Sertifikat Kompentensi Kelulusan pada kelas Memulai Pemograman Pada Dart",
+    issuer: "Sertifikat Kompetensi Kelulusan pada Kelas Memulai Pemrograman dengan Dart",
     date: "24/08/2026",
     status: "owned",
     file: "assets/documents/certificates/sertifikat_course_191_5952123_240826203853.pdf"
   },
   {
-    id: "certificate-04",
+    id: "certificate-05",
     title: "Dicoding",
-    issuer: "Sertifikat Kompentensi Kelulusan pada kelas Belajar Membuat Aplikasi Flutter Untuk Pemula",
+    issuer: "Sertifikat Kompetensi Kelulusan pada Kelas Belajar Membuat Aplikasi Flutter untuk Pemula",
     date: "27/08/2026",
     status: "owned",
     file: "assets/documents/certificates/sertifikat_course_159_5952123_270826210355.pdf"
@@ -34,10 +42,10 @@ window.portfolioCertificates = [
   {
     id: "certificate-06",
     title: "Dicoding",
-    issuer: "Sedang diproses",
-    date: "",
-    status: "progress",
-    file: ""
+    issuer: "Junior Multi-Platform Engineer",
+    date: "05/11/2026",
+    status: "owned",
+    file: "assets/documents/certificates/[Sertifikat Kompetensi 2026] Muhamad Adli Irawan - SMKN 1 Cibinong.pdf"
   },
   {
     id: "certificate-07",
