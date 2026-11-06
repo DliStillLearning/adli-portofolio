@@ -164,8 +164,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let activePdfDocument = null;
   let pdfRenderTasks = [];
   let pdfZoom = 1;
-  let pdfCurrentPage = 1;
   let pdfRenderVersion = 0;
+  let renderActivePdfPages = null;
 
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 3;
@@ -364,6 +364,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateImageZoom();
   };
 
+
   const renderPdfViewer = async (fileUrl, title) => {
     if (!modalViewer) return;
 
@@ -375,7 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Batalkan proses render sebelumnya.
+    // Batalkan proses PDF sebelumnya.
     pdfRenderVersion++;
 
     pdfRenderTasks.forEach(task => {
@@ -385,53 +386,50 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     pdfRenderTasks = [];
+    renderActivePdfPages = null;
 
     if (activePdfDocument) {
       try {
         await activePdfDocument.destroy();
       } catch { }
-
       activePdfDocument = null;
     }
 
     pdfZoom = 1;
-    pdfCurrentPage = 1;
 
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-    const currentVersion = pdfRenderVersion;
+    const loadingVersion = pdfRenderVersion;
 
     modalViewer.innerHTML = `
     <div class="certificate-pdf-viewer">
 
       <div class="certificate-pdf-toolbar">
-        <div class="certificate-pdf-navigation">
-          <button type="button" data-pdf-action="prev" disabled>
-            Sebelumnya
-          </button>
-
-          <span data-pdf-page aria-live="polite">
-            Memuat halaman...
-          </span>
-
-          <button type="button" data-pdf-action="next" disabled>
-            Berikutnya
-          </button>
-        </div>
-
         <div class="certificate-pdf-zoom">
-          <button type="button" data-pdf-action="zoom-out"
-            aria-label="Perkecil PDF">−</button>
+
+          <button
+            type="button"
+            data-pdf-action="zoom-out"
+            aria-label="Perkecil PDF">
+            −
+          </button>
 
           <output data-pdf-zoom-value>100%</output>
 
-          <button type="button" data-pdf-action="zoom-in"
-            aria-label="Perbesar PDF">+</button>
+          <button
+            type="button"
+            data-pdf-action="zoom-in"
+            aria-label="Perbesar PDF">
+            +
+          </button>
 
-          <button type="button" data-pdf-action="zoom-reset">
+          <button
+            type="button"
+            data-pdf-action="zoom-reset">
             Reset
           </button>
+
         </div>
       </div>
 
@@ -446,117 +444,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const pagesContainer = $("[data-pdf-pages]", modalViewer);
 
-    const renderPages = async () => {
-      const version = ++pdfRenderVersion;
-
-      pdfRenderTasks.forEach(task => {
-        try {
-          task.cancel();
-        } catch { }
-      });
-
-      pdfRenderTasks = [];
-      pagesContainer.innerHTML = "";
-
-      const pageElements = [];
-
-      for (let pageNumber = 1;
-        pageNumber <= activePdfDocument.numPages;
-        pageNumber++
-      ) {
-        if (version !== pdfRenderVersion) return;
-
-        const page = await activePdfDocument.getPage(pageNumber);
-
-        if (version !== pdfRenderVersion) return;
-
-        const originalViewport = page.getViewport({ scale: 1 });
-
-        const availableWidth = Math.max(
-          280,
-          pagesContainer.clientWidth - 32
-        );
-
-        const fitScale = availableWidth / originalViewport.width;
-        const scale = fitScale * pdfZoom;
-
-        const viewport = page.getViewport({ scale });
-
-        const canvas = document.createElement("canvas");
-        canvas.className = "certificate-pdf-page";
-        canvas.dataset.pageNumber = pageNumber;
-
-        const context = canvas.getContext("2d");
-
-        if (!context) continue;
-
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-
-        canvas.width = Math.ceil(viewport.width * pixelRatio);
-        canvas.height = Math.ceil(viewport.height * pixelRatio);
-
-        canvas.style.width = `${Math.ceil(viewport.width)}px`;
-        canvas.style.height = `${Math.ceil(viewport.height)}px`;
-
-        const renderContext = {
-          canvasContext: context,
-          viewport,
-          transform: pixelRatio !== 1
-            ? [pixelRatio, 0, 0, pixelRatio, 0, 0]
-            : null
-        };
-
-        pagesContainer.appendChild(canvas);
-        pageElements.push(canvas);
-
-        const renderTask = page.render(renderContext);
-        pdfRenderTasks.push(renderTask);
-
-        try {
-          await renderTask.promise;
-        } catch (error) {
-          if (error?.name !== "RenderingCancelledException") {
-            throw error;
-          }
-          return;
-        }
-      }
-
-      if (version !== pdfRenderVersion) return;
-
-      const updatePageIndicator = () => {
-        const pageIndicator = $("[data-pdf-page]", modalViewer);
-        const previousButton = $('[data-pdf-action="prev"]', modalViewer);
-        const nextButton = $('[data-pdf-action="next"]', modalViewer);
-
-        if (pageIndicator) {
-          pageIndicator.textContent =
-            `Halaman ${pdfCurrentPage} dari ${activePdfDocument.numPages}`;
-        }
-
-        if (previousButton) {
-          previousButton.disabled = pdfCurrentPage <= 1;
-        }
-
-        if (nextButton) {
-          nextButton.disabled =
-            pdfCurrentPage >= activePdfDocument.numPages;
-        }
-      };
-
-      updatePageIndicator();
-
-      // Simpan elemen halaman untuk navigasi.
-      pagesContainer.querySelectorAll("canvas").forEach(canvas => {
-        canvas.addEventListener("click", () => {
-          pdfCurrentPage = Number(canvas.dataset.pageNumber);
-          updatePageIndicator();
-        });
-      });
-
-      pagesContainer.dataset.ready = "true";
-    };
-
     try {
       const loadingTask = window.pdfjsLib.getDocument({
         url: fileUrl
@@ -564,21 +451,136 @@ document.addEventListener("DOMContentLoaded", () => {
 
       activePdfDocument = await loadingTask.promise;
 
-      if (currentVersion !== pdfRenderVersion) return;
+      if (loadingVersion !== pdfRenderVersion) return;
 
-      await renderPages();
+      // Fungsi render semua halaman PDF.
+      renderActivePdfPages = async () => {
+        if (!activePdfDocument || !pagesContainer) return;
 
-      if (modalStatus) {
-        modalStatus.textContent =
-          `${activePdfDocument.numPages} halaman · PDF.js Viewer`;
-      }
+        const version = ++pdfRenderVersion;
+        const previousScrollTop = pagesContainer.scrollTop;
+
+        // Batalkan render yang sedang berlangsung.
+        pdfRenderTasks.forEach(task => {
+          try {
+            task.cancel();
+          } catch { }
+        });
+
+        pdfRenderTasks = [];
+        pagesContainer.innerHTML = "";
+
+        const pageCount = activePdfDocument.numPages;
+
+        const availableWidth = Math.max(
+          280,
+          pagesContainer.clientWidth - 32
+        );
+
+        try {
+          for (let pageNumber = 1;
+            pageNumber <= pageCount;
+            pageNumber++
+          ) {
+            if (version !== pdfRenderVersion) return;
+
+            const page = await activePdfDocument.getPage(pageNumber);
+
+            if (version !== pdfRenderVersion) return;
+
+            const originalViewport = page.getViewport({
+              scale: 1
+            });
+
+            // Ukuran dasar mengikuti lebar area viewer.
+            const fitScale =
+              availableWidth / originalViewport.width;
+
+            const scale = fitScale * pdfZoom;
+
+            const viewport = page.getViewport({
+              scale
+            });
+
+            const canvas = document.createElement("canvas");
+            canvas.className = "certificate-pdf-page";
+
+            const context = canvas.getContext("2d");
+
+            if (!context) continue;
+
+            const pixelRatio = Math.min(
+              window.devicePixelRatio || 1,
+              2
+            );
+
+            canvas.width = Math.ceil(
+              viewport.width * pixelRatio
+            );
+
+            canvas.height = Math.ceil(
+              viewport.height * pixelRatio
+            );
+
+            canvas.style.width =
+              `${Math.ceil(viewport.width)}px`;
+
+            canvas.style.height =
+              `${Math.ceil(viewport.height)}px`;
+
+            pagesContainer.appendChild(canvas);
+
+            const renderTask = page.render({
+              canvasContext: context,
+              viewport,
+              transform: pixelRatio !== 1
+                ? [pixelRatio, 0, 0, pixelRatio, 0, 0]
+                : null
+            });
+
+            pdfRenderTasks.push(renderTask);
+
+            await renderTask.promise;
+          }
+
+          if (version !== pdfRenderVersion) return;
+
+          // Pertahankan posisi scroll setelah zoom.
+          pagesContainer.scrollTop = previousScrollTop;
+
+          const zoomValue = $(
+            "[data-pdf-zoom-value]",
+            modalViewer
+          );
+
+          if (zoomValue) {
+            zoomValue.textContent =
+              `${Math.round(pdfZoom * 100)}%`;
+          }
+
+          if (modalStatus) {
+            modalStatus.textContent =
+              `${pageCount} halaman · Zoom ${Math.round(pdfZoom * 100)}%`;
+          }
+
+        } catch (error) {
+          if (error?.name === "RenderingCancelledException") {
+            return;
+          }
+
+          console.error("Gagal merender halaman PDF:", error);
+        }
+      };
+
+      await renderActivePdfPages();
+
     } catch (error) {
       console.error("Gagal memuat PDF:", error);
 
       makeEmptyViewer({
         title: "PDF tidak dapat ditampilkan",
         message:
-          "Periksa file PDF, lokasi file, dan koneksi internet. Kamu masih bisa mencoba membukanya melalui tombol Buka Tab."
+          "Periksa file PDF, lokasi file, dan koneksi internet."
       });
 
       if (modalStatus) {
@@ -856,6 +858,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * Zoom buttons use one delegated listener so repeated modal openings
    * never attach duplicate event handlers.
    */
+
   modalViewer?.addEventListener("click", event => {
     const button = event.target.closest(
       "[data-image-zoom], [data-pdf-action]"
@@ -863,7 +866,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!button || !modalViewer.contains(button)) return;
 
-    // Kontrol zoom gambar.
+    // =====================================
+    // ZOOM GAMBAR
+    // =====================================
+
     if (button.hasAttribute("data-image-zoom")) {
       const action = button.dataset.imageZoom;
 
@@ -879,19 +885,15 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Kontrol PDF.
+    // =====================================
+    // ZOOM PDF
+    // =====================================
+
+    if (!activePdfDocument || !renderActivePdfPages) return;
+
     const action = button.dataset.pdfAction;
 
-    if (!activePdfDocument) return;
-
-    if (action === "prev") {
-      pdfCurrentPage = Math.max(1, pdfCurrentPage - 1);
-    } else if (action === "next") {
-      pdfCurrentPage = Math.min(
-        activePdfDocument.numPages,
-        pdfCurrentPage + 1
-      );
-    } else if (action === "zoom-in") {
+    if (action === "zoom-in") {
       pdfZoom = Math.min(2.5, pdfZoom + 0.25);
     } else if (action === "zoom-out") {
       pdfZoom = Math.max(0.5, pdfZoom - 0.25);
@@ -899,37 +901,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pdfZoom = 1;
     }
 
-    if (action === "prev" || action === "next") {
-      const targetPage = $(
-        `canvas[data-page-number="${pdfCurrentPage}"]`,
-        modalViewer
-      );
-
-      targetPage?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-
-      const indicator = $("[data-pdf-page]", modalViewer);
-
-      if (indicator) {
-        indicator.textContent =
-          `Halaman ${pdfCurrentPage} dari ${activePdfDocument.numPages}`;
-      }
-
-      $('[data-pdf-action="prev"]', modalViewer).disabled =
-        pdfCurrentPage <= 1;
-
-      $('[data-pdf-action="next"]', modalViewer).disabled =
-        pdfCurrentPage >= activePdfDocument.numPages;
-
-      return;
-    }
-
-    renderPdfViewer(
-      modal.querySelector("#modal-open-file")?.href,
-      modalTitle?.textContent || "Sertifikat"
-    );
+    renderActivePdfPages();
   });
 
   const cleanupModal = () => {
