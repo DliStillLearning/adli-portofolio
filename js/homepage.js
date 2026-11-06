@@ -152,6 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const modal = $("#certificate-modal");
   const modalViewer = $("#modal-viewer");
   const modalTitle = $("#modal-title");
+  const modalFileIcon = $("#modal-file-icon");
   const modalSubtitle = $("#modal-subtitle");
   const modalStatus = $("#modal-status");
   const openFile = $("#modal-open-file");
@@ -619,6 +620,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const fileUrl = resolveFilePath(rawPath);
     const fileType = getFileType(rawPath);
 
+    // Sesuaikan badge dengan format sertifikat.
+    if (modalFileIcon) {
+      const badgeText = {
+        pdf: "PDF",
+        image: "IMG",
+        unknown: "FILE"
+      };
+
+      modalFileIcon.textContent = badgeText[fileType] || "FILE";
+      modalFileIcon.dataset.fileType = fileType;
+    }
+
     modalTitle.textContent = cert.title || "Pratinjau sertifikat";
 
     modalSubtitle.textContent =
@@ -631,9 +644,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (downloadFile) {
-      downloadFile.hidden = !fileUrl;
-      downloadFile.href = fileUrl;
-      downloadFile.download = getFileName(rawPath);
+      downloadFile.textContent =
+        fileType === "image" ? "Unduh Gambar ↓" : "Unduh PDF ↓";
     }
 
     if (!fileUrl) {

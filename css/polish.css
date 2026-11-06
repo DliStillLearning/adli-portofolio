@@ -1812,30 +1812,6 @@ code {
     min-height: 260px;
   }
 
-  .certificate-image-toolbar {
-    align-items: flex-start;
-    padding: 10px;
-  }
-
-  .certificate-image-toolbar-label {
-    padding-top: 8px;
-  }
-
-  .certificate-zoom-controls {
-    gap: 4px;
-  }
-
-  .certificate-zoom-controls button {
-    min-width: 30px;
-    min-height: 32px;
-    padding: 5px 7px;
-  }
-
-  .certificate-zoom-controls output {
-    min-width: 38px;
-    font-size: 0.68rem;
-  }
-
   .certificate-image-stage {
     padding: 12px 6px;
   }
@@ -1890,30 +1866,6 @@ code {
     height: 68vh;
     height: 68dvh;
     min-height: 280px;
-  }
-
-  .certificate-image-toolbar {
-    align-items: flex-start;
-    padding: 10px;
-  }
-
-  .certificate-image-toolbar-label {
-    padding-top: 8px;
-  }
-
-  .certificate-zoom-controls {
-    gap: 4px;
-  }
-
-  .certificate-zoom-controls button {
-    min-width: 30px;
-    min-height: 32px;
-    padding: 5px 7px;
-  }
-
-  .certificate-zoom-controls output {
-    min-width: 38px;
-    font-size: 0.68rem;
   }
 
   .certificate-image-stage {
@@ -2276,13 +2228,15 @@ code {
   }
 }
 
-
-/* =====================================================
-   SHARED CERTIFICATE TOOLBAR — PDF + IMAGE
-   ===================================================== */
+/* =========================================
+   FINAL UNIFIED CERTIFICATE TOOLBAR
+   ========================================= */
 
 .certificate-image-toolbar,
 .certificate-pdf-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   flex: 0 0 auto;
   justify-content: flex-end;
@@ -2290,10 +2244,6 @@ code {
   padding: 12px 16px;
   background: #29352c;
   border-bottom: 1px solid rgba(255, 255, 255, .12);
-}
-
-.certificate-image-toolbar-label {
-  display: none;
 }
 
 .certificate-zoom-controls,
@@ -2336,9 +2286,12 @@ code {
   font-size: 12px;
 }
 
+.certificate-image-toolbar-label {
+  display: none;
+}
+
 /* Mobile */
 @media (max-width: 600px) {
-
   .certificate-image-toolbar,
   .certificate-pdf-toolbar {
     padding: 9px 12px;
