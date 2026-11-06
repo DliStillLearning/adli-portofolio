@@ -1776,55 +1776,6 @@ code {
   background: #20251f;
 }
 
-.certificate-image-toolbar {
-  display: flex;
-  flex: 0 0 auto;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 12px 16px;
-  background: #29352c;
-  border-bottom: 1px solid rgba(255,255,255,.12);
-}
-
-.certificate-image-toolbar-label {
-  display: none;
-}
-
-.certificate-zoom-controls {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.certificate-zoom-controls button {
-  min-width: 34px;
-  min-height: 34px;
-  padding: 5px 10px;
-  color: #f4f0e6;
-  background: #3b4b3e;
-  border: 1px solid rgba(255,255,255,.15);
-  border-radius: 6px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-}
-
-.certificate-zoom-controls button:hover:not(:disabled) {
-  background: #526651;
-}
-
-.certificate-zoom-controls button:disabled {
-  opacity: .4;
-  cursor: not-allowed;
-}
-
-.certificate-zoom-controls output {
-  min-width: 48px;
-  color: #f4f0e6;
-  text-align: center;
-  font-size: 12px;
-}
-
 .certificate-image-stage {
   width: 100%;
   min-width: 0;
@@ -1849,7 +1800,7 @@ code {
   margin: 0 auto;
   object-fit: contain;
   background: #fff;
-  box-shadow: 0 5px 24px rgba(0,0,0,.3);
+  box-shadow: 0 5px 24px rgba(0, 0, 0, .3);
   user-select: none;
   -webkit-user-drag: none;
 }
@@ -1862,21 +1813,27 @@ code {
   }
 
   .certificate-image-toolbar {
-    padding: 9px 12px;
+    align-items: flex-start;
+    padding: 10px;
+  }
+
+  .certificate-image-toolbar-label {
+    padding-top: 8px;
   }
 
   .certificate-zoom-controls {
-    gap: 6px;
+    gap: 4px;
   }
 
   .certificate-zoom-controls button {
-    min-width: 32px;
-    min-height: 36px;
-    padding: 5px 8px;
+    min-width: 30px;
+    min-height: 32px;
+    padding: 5px 7px;
   }
 
   .certificate-zoom-controls output {
-    min-width: 42px;
+    min-width: 38px;
+    font-size: 0.68rem;
   }
 
   .certificate-image-stage {
@@ -2269,47 +2226,6 @@ code {
   background: #20251f;
 }
 
-.certificate-pdf-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 16px;
-  background: #29352c;
-  border-bottom: 1px solid rgba(255,255,255,.12);
-}
-
-.certificate-pdf-zoom {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.certificate-pdf-toolbar button {
-  min-width: 34px;
-  min-height: 34px;
-  padding: 5px 10px;
-  color: #f4f0e6;
-  background: #3b4b3e;
-  border: 1px solid rgba(255,255,255,.15);
-  border-radius: 6px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-}
-
-.certificate-pdf-toolbar button:hover {
-  background: #526651;
-}
-
-.certificate-pdf-toolbar output {
-  min-width: 48px;
-  color: #f4f0e6;
-  text-align: center;
-  font-size: 12px;
-}
-
 /* Area scroll seluruh halaman PDF */
 .certificate-pdf-pages {
   width: 100%;
@@ -2333,7 +2249,7 @@ code {
   height: auto;
   margin: 0 auto;
   background: #fff;
-  box-shadow: 0 5px 24px rgba(0,0,0,.3);
+  box-shadow: 0 5px 24px rgba(0, 0, 0, .3);
 }
 
 .certificate-pdf-loading {
@@ -2357,5 +2273,91 @@ code {
 
   .certificate-pdf-toolbar button {
     min-height: 36px;
+  }
+}
+
+
+/* =====================================================
+   SHARED CERTIFICATE TOOLBAR — PDF + IMAGE
+   ===================================================== */
+
+.certificate-image-toolbar,
+.certificate-pdf-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 16px;
+  background: #29352c;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
+}
+
+.certificate-image-toolbar-label {
+  display: none;
+}
+
+.certificate-zoom-controls,
+.certificate-pdf-zoom {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.certificate-zoom-controls button,
+.certificate-pdf-toolbar button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 5px 10px;
+  color: #f4f0e6;
+  background: #3b4b3e;
+  border: 1px solid rgba(255, 255, 255, .15);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+
+.certificate-zoom-controls button:hover:not(:disabled),
+.certificate-pdf-toolbar button:hover:not(:disabled) {
+  background: #526651;
+}
+
+.certificate-zoom-controls button:disabled,
+.certificate-pdf-toolbar button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.certificate-zoom-controls output,
+.certificate-pdf-toolbar output {
+  min-width: 48px;
+  color: #f4f0e6;
+  text-align: center;
+  font-size: 12px;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+
+  .certificate-image-toolbar,
+  .certificate-pdf-toolbar {
+    padding: 9px 12px;
+  }
+
+  .certificate-zoom-controls,
+  .certificate-pdf-zoom {
+    gap: 6px;
+  }
+
+  .certificate-zoom-controls button,
+  .certificate-pdf-toolbar button {
+    min-width: 32px;
+    min-height: 36px;
+    padding: 5px 8px;
+  }
+
+  .certificate-zoom-controls output,
+  .certificate-pdf-toolbar output {
+    min-width: 42px;
   }
 }
