@@ -161,6 +161,12 @@ document.addEventListener("DOMContentLoaded", () => {
   let lastTrigger = null;
   let imageZoom = 1;
 
+  let activePdfDocument = null;
+  let pdfRenderTasks = [];
+  let pdfZoom = 1;
+  let pdfCurrentPage = 1;
+  let pdfRenderVersion = 0;
+
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 3;
   const ZOOM_STEP = 0.25;
@@ -358,18 +364,227 @@ document.addEventListener("DOMContentLoaded", () => {
     updateImageZoom();
   };
 
-  const renderPdfViewer = (fileUrl, title) => {
+  const renderPdfViewer = async (fileUrl, title) => {
     if (!modalViewer) return;
 
+    if (!window.pdfjsLib) {
+      makeEmptyViewer({
+        title: "PDF.js tidak tersedia",
+        message: "Periksa koneksi internet atau pemuatan library PDF.js."
+      });
+      return;
+    }
+
+    // Batalkan proses render sebelumnya.
+    pdfRenderVersion++;
+
+    pdfRenderTasks.forEach(task => {
+      try {
+        task.cancel();
+      } catch { }
+    });
+
+    pdfRenderTasks = [];
+
+    if (activePdfDocument) {
+      try {
+        await activePdfDocument.destroy();
+      } catch { }
+
+      activePdfDocument = null;
+    }
+
+    pdfZoom = 1;
+    pdfCurrentPage = 1;
+
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    const currentVersion = pdfRenderVersion;
+
     modalViewer.innerHTML = `
-      <div class="certificate-pdf-viewer">
-        <iframe
-          title="${escapeHTML(`Pratinjau PDF ${title}`)}"
-          src="${escapeHTML(fileUrl)}#toolbar=1&navpanes=0"
-          loading="eager">
-        </iframe>
+    <div class="certificate-pdf-viewer">
+
+      <div class="certificate-pdf-toolbar">
+        <div class="certificate-pdf-navigation">
+          <button type="button" data-pdf-action="prev" disabled>
+            Sebelumnya
+          </button>
+
+          <span data-pdf-page aria-live="polite">
+            Memuat halaman...
+          </span>
+
+          <button type="button" data-pdf-action="next" disabled>
+            Berikutnya
+          </button>
+        </div>
+
+        <div class="certificate-pdf-zoom">
+          <button type="button" data-pdf-action="zoom-out"
+            aria-label="Perkecil PDF">−</button>
+
+          <output data-pdf-zoom-value>100%</output>
+
+          <button type="button" data-pdf-action="zoom-in"
+            aria-label="Perbesar PDF">+</button>
+
+          <button type="button" data-pdf-action="zoom-reset">
+            Reset
+          </button>
+        </div>
       </div>
-    `;
+
+      <div class="certificate-pdf-pages" data-pdf-pages>
+        <div class="certificate-pdf-loading">
+          Memuat dokumen PDF...
+        </div>
+      </div>
+
+    </div>
+  `;
+
+    const pagesContainer = $("[data-pdf-pages]", modalViewer);
+
+    const renderPages = async () => {
+      const version = ++pdfRenderVersion;
+
+      pdfRenderTasks.forEach(task => {
+        try {
+          task.cancel();
+        } catch { }
+      });
+
+      pdfRenderTasks = [];
+      pagesContainer.innerHTML = "";
+
+      const pageElements = [];
+
+      for (let pageNumber = 1;
+        pageNumber <= activePdfDocument.numPages;
+        pageNumber++
+      ) {
+        if (version !== pdfRenderVersion) return;
+
+        const page = await activePdfDocument.getPage(pageNumber);
+
+        if (version !== pdfRenderVersion) return;
+
+        const originalViewport = page.getViewport({ scale: 1 });
+
+        const availableWidth = Math.max(
+          280,
+          pagesContainer.clientWidth - 32
+        );
+
+        const fitScale = availableWidth / originalViewport.width;
+        const scale = fitScale * pdfZoom;
+
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement("canvas");
+        canvas.className = "certificate-pdf-page";
+        canvas.dataset.pageNumber = pageNumber;
+
+        const context = canvas.getContext("2d");
+
+        if (!context) continue;
+
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+        canvas.width = Math.ceil(viewport.width * pixelRatio);
+        canvas.height = Math.ceil(viewport.height * pixelRatio);
+
+        canvas.style.width = `${Math.ceil(viewport.width)}px`;
+        canvas.style.height = `${Math.ceil(viewport.height)}px`;
+
+        const renderContext = {
+          canvasContext: context,
+          viewport,
+          transform: pixelRatio !== 1
+            ? [pixelRatio, 0, 0, pixelRatio, 0, 0]
+            : null
+        };
+
+        pagesContainer.appendChild(canvas);
+        pageElements.push(canvas);
+
+        const renderTask = page.render(renderContext);
+        pdfRenderTasks.push(renderTask);
+
+        try {
+          await renderTask.promise;
+        } catch (error) {
+          if (error?.name !== "RenderingCancelledException") {
+            throw error;
+          }
+          return;
+        }
+      }
+
+      if (version !== pdfRenderVersion) return;
+
+      const updatePageIndicator = () => {
+        const pageIndicator = $("[data-pdf-page]", modalViewer);
+        const previousButton = $('[data-pdf-action="prev"]', modalViewer);
+        const nextButton = $('[data-pdf-action="next"]', modalViewer);
+
+        if (pageIndicator) {
+          pageIndicator.textContent =
+            `Halaman ${pdfCurrentPage} dari ${activePdfDocument.numPages}`;
+        }
+
+        if (previousButton) {
+          previousButton.disabled = pdfCurrentPage <= 1;
+        }
+
+        if (nextButton) {
+          nextButton.disabled =
+            pdfCurrentPage >= activePdfDocument.numPages;
+        }
+      };
+
+      updatePageIndicator();
+
+      // Simpan elemen halaman untuk navigasi.
+      pagesContainer.querySelectorAll("canvas").forEach(canvas => {
+        canvas.addEventListener("click", () => {
+          pdfCurrentPage = Number(canvas.dataset.pageNumber);
+          updatePageIndicator();
+        });
+      });
+
+      pagesContainer.dataset.ready = "true";
+    };
+
+    try {
+      const loadingTask = window.pdfjsLib.getDocument({
+        url: fileUrl
+      });
+
+      activePdfDocument = await loadingTask.promise;
+
+      if (currentVersion !== pdfRenderVersion) return;
+
+      await renderPages();
+
+      if (modalStatus) {
+        modalStatus.textContent =
+          `${activePdfDocument.numPages} halaman · PDF.js Viewer`;
+      }
+    } catch (error) {
+      console.error("Gagal memuat PDF:", error);
+
+      makeEmptyViewer({
+        title: "PDF tidak dapat ditampilkan",
+        message:
+          "Periksa file PDF, lokasi file, dan koneksi internet. Kamu masih bisa mencoba membukanya melalui tombol Buka Tab."
+      });
+
+      if (modalStatus) {
+        modalStatus.textContent = "Gagal memuat PDF";
+      }
+    }
   };
 
   const openCertificate = cert => {
@@ -443,87 +658,87 @@ document.addEventListener("DOMContentLoaded", () => {
   /*
    * Card labels and preview modal.
    */
-  
-/* =====================================================
-   CERTIFICATE CARDS WITH REAL THUMBNAILS
-   ===================================================== */
 
-const certificates = Array.isArray(window.portfolioCertificates)
-  ? window.portfolioCertificates
-  : [];
+  /* =====================================================
+     CERTIFICATE CARDS WITH REAL THUMBNAILS
+     ===================================================== */
 
-const renderPdfThumbnail = async (canvas, fileUrl) => {
-  const preview = canvas.closest(".certificate-card-preview");
+  const certificates = Array.isArray(window.portfolioCertificates)
+    ? window.portfolioCertificates
+    : [];
 
-  try {
-    if (!window.pdfjsLib) {
-      throw new Error("PDF.js tidak tersedia");
+  const renderPdfThumbnail = async (canvas, fileUrl) => {
+    const preview = canvas.closest(".certificate-card-preview");
+
+    try {
+      if (!window.pdfjsLib) {
+        throw new Error("PDF.js tidak tersedia");
+      }
+
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+      const pdf = await window.pdfjsLib
+        .getDocument({ url: fileUrl })
+        .promise;
+
+      const page = await pdf.getPage(1);
+      const originalViewport = page.getViewport({ scale: 1 });
+
+      // Muat seluruh halaman pertama ke dalam thumbnail.
+      const scale = Math.min(
+        300 / originalViewport.width,
+        220 / originalViewport.height
+      );
+
+      const viewport = page.getViewport({ scale });
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        throw new Error("Canvas tidak tersedia");
+      }
+
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+
+      await page.render({
+        canvasContext: context,
+        viewport
+      }).promise;
+
+      preview?.classList.add("is-ready");
+      preview?.classList.remove("has-thumbnail-error");
+
+      // Lepaskan resource PDF setelah halaman preview selesai dirender.
+      await pdf.destroy();
+    } catch (error) {
+      console.warn("Thumbnail sertifikat PDF gagal dimuat:", error);
+
+      preview?.classList.add("has-thumbnail-error");
     }
+  };
 
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  if (certGrid) {
+    certGrid.innerHTML = certificates.map((cert, index) => {
+      const inProgress = cert.status === "progress";
+      const rawFile = String(cert.file || "").trim();
+      const fileUrl = resolveFilePath(rawFile);
+      const fileType = getFileType(rawFile);
 
-    const pdf = await window.pdfjsLib
-      .getDocument({ url: fileUrl })
-      .promise;
+      const subtitle = inProgress
+        ? "Sedang diproses"
+        : (cert.issuer || "Sertifikat dimiliki · detail menyusul");
 
-    const page = await pdf.getPage(1);
-    const originalViewport = page.getViewport({ scale: 1 });
+      let previewContent = "";
 
-    // Muat seluruh halaman pertama ke dalam thumbnail.
-    const scale = Math.min(
-      300 / originalViewport.width,
-      220 / originalViewport.height
-    );
-
-    const viewport = page.getViewport({ scale });
-    const context = canvas.getContext("2d");
-
-    if (!context) {
-      throw new Error("Canvas tidak tersedia");
-    }
-
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-
-    await page.render({
-      canvasContext: context,
-      viewport
-    }).promise;
-
-    preview?.classList.add("is-ready");
-    preview?.classList.remove("has-thumbnail-error");
-
-    // Lepaskan resource PDF setelah halaman preview selesai dirender.
-    await pdf.destroy();
-  } catch (error) {
-    console.warn("Thumbnail sertifikat PDF gagal dimuat:", error);
-
-    preview?.classList.add("has-thumbnail-error");
-  }
-};
-
-if (certGrid) {
-  certGrid.innerHTML = certificates.map((cert, index) => {
-    const inProgress = cert.status === "progress";
-    const rawFile = String(cert.file || "").trim();
-    const fileUrl = resolveFilePath(rawFile);
-    const fileType = getFileType(rawFile);
-
-    const subtitle = inProgress
-      ? "Sedang diproses"
-      : (cert.issuer || "Sertifikat dimiliki · detail menyusul");
-
-    let previewContent = "";
-
-    if (inProgress) {
-      previewContent = `
+      if (inProgress) {
+        previewContent = `
         <span class="certificate-preview-fallback">
           WAIT
         </span>
       `;
-    } else if (fileUrl && fileType === "image") {
-      previewContent = `
+      } else if (fileUrl && fileType === "image") {
+        previewContent = `
         <img
           class="certificate-card-thumbnail"
           src="${escapeHTML(fileUrl)}"
@@ -536,8 +751,8 @@ if (certGrid) {
           IMG
         </span>
       `;
-    } else if (fileUrl && fileType === "pdf") {
-      previewContent = `
+      } else if (fileUrl && fileType === "pdf") {
+        previewContent = `
         <canvas
           class="certificate-card-thumbnail certificate-card-preview-canvas"
           data-thumbnail-src="${escapeHTML(fileUrl)}"
@@ -548,15 +763,15 @@ if (certGrid) {
           PDF
         </span>
       `;
-    } else {
-      previewContent = `
+      } else {
+        previewContent = `
         <span class="certificate-preview-fallback">
           FILE
         </span>
       `;
-    }
+      }
 
-    return `
+      return `
       <button
         type="button"
         class="certificate-card ${inProgress ? "is-progress" : ""}"
@@ -583,80 +798,138 @@ if (certGrid) {
         </span>
       </button>
     `;
-  }).join("");
+    }).join("");
 
-  // Gambar sertifikat: gunakan file gambar secara langsung.
-  $$(".certificate-card-thumbnail[data-certificate-thumbnail]", certGrid)
-    .forEach(image => {
-      const preview = image.closest(".certificate-card-preview");
+    // Gambar sertifikat: gunakan file gambar secara langsung.
+    $$(".certificate-card-thumbnail[data-certificate-thumbnail]", certGrid)
+      .forEach(image => {
+        const preview = image.closest(".certificate-card-preview");
 
-      const markReady = () => {
-        preview?.classList.add("is-ready");
-        preview?.classList.remove("has-thumbnail-error");
-      };
+        const markReady = () => {
+          preview?.classList.add("is-ready");
+          preview?.classList.remove("has-thumbnail-error");
+        };
 
-      const markError = () => {
-        preview?.classList.add("has-thumbnail-error");
-      };
+        const markError = () => {
+          preview?.classList.add("has-thumbnail-error");
+        };
 
-      image.addEventListener("load", markReady, { once: true });
-      image.addEventListener("error", markError, { once: true });
+        image.addEventListener("load", markReady, { once: true });
+        image.addEventListener("error", markError, { once: true });
 
-      // Menangani gambar yang sudah masuk cache browser.
-      if (image.complete) {
-        if (image.naturalWidth > 0) {
-          markReady();
-        } else {
-          markError();
+        // Menangani gambar yang sudah masuk cache browser.
+        if (image.complete) {
+          if (image.naturalWidth > 0) {
+            markReady();
+          } else {
+            markError();
+          }
         }
-      }
+      });
+
+    // PDF: render halaman pertama menggunakan PDF.js.
+    $$(".certificate-card-preview-canvas[data-thumbnail-src]", certGrid)
+      .forEach(canvas => {
+        renderPdfThumbnail(
+          canvas,
+          canvas.dataset.thumbnailSrc
+        );
+      });
+
+    // Klik card membuka modal viewer yang sudah ada.
+    certGrid.addEventListener("click", event => {
+      const button = event.target.closest("[data-certificate-index]");
+
+      if (!button || button.disabled) return;
+
+      const index = Number(button.dataset.certificateIndex);
+      const cert = certificates[index];
+
+      if (!cert || !modal) return;
+
+      lastTrigger = button;
+      openCertificate(cert);
     });
-
-  // PDF: render halaman pertama menggunakan PDF.js.
-  $$(".certificate-card-preview-canvas[data-thumbnail-src]", certGrid)
-    .forEach(canvas => {
-      renderPdfThumbnail(
-        canvas,
-        canvas.dataset.thumbnailSrc
-      );
-    });
-
-  // Klik card membuka modal viewer yang sudah ada.
-  certGrid.addEventListener("click", event => {
-    const button = event.target.closest("[data-certificate-index]");
-
-    if (!button || button.disabled) return;
-
-    const index = Number(button.dataset.certificateIndex);
-    const cert = certificates[index];
-
-    if (!cert || !modal) return;
-
-    lastTrigger = button;
-    openCertificate(cert);
-  });
-}
+  }
 
   /*
    * Zoom buttons use one delegated listener so repeated modal openings
    * never attach duplicate event handlers.
    */
   modalViewer?.addEventListener("click", event => {
-    const button = event.target.closest("[data-image-zoom]");
+    const button = event.target.closest(
+      "[data-image-zoom], [data-pdf-action]"
+    );
 
     if (!button || !modalViewer.contains(button)) return;
 
-    const action = button.dataset.imageZoom;
+    // Kontrol zoom gambar.
+    if (button.hasAttribute("data-image-zoom")) {
+      const action = button.dataset.imageZoom;
 
-    if (action === "in") {
-      imageZoom = Math.min(MAX_ZOOM, imageZoom + ZOOM_STEP);
-    } else if (action === "out") {
-      imageZoom = Math.max(MIN_ZOOM, imageZoom - ZOOM_STEP);
-    } else if (action === "reset") {
-      imageZoom = 1;
+      if (action === "in") {
+        imageZoom = Math.min(MAX_ZOOM, imageZoom + ZOOM_STEP);
+      } else if (action === "out") {
+        imageZoom = Math.max(MIN_ZOOM, imageZoom - ZOOM_STEP);
+      } else if (action === "reset") {
+        imageZoom = 1;
+      }
+
+      updateImageZoom();
+      return;
     }
 
-    updateImageZoom();
+    // Kontrol PDF.
+    const action = button.dataset.pdfAction;
+
+    if (!activePdfDocument) return;
+
+    if (action === "prev") {
+      pdfCurrentPage = Math.max(1, pdfCurrentPage - 1);
+    } else if (action === "next") {
+      pdfCurrentPage = Math.min(
+        activePdfDocument.numPages,
+        pdfCurrentPage + 1
+      );
+    } else if (action === "zoom-in") {
+      pdfZoom = Math.min(2.5, pdfZoom + 0.25);
+    } else if (action === "zoom-out") {
+      pdfZoom = Math.max(0.5, pdfZoom - 0.25);
+    } else if (action === "zoom-reset") {
+      pdfZoom = 1;
+    }
+
+    if (action === "prev" || action === "next") {
+      const targetPage = $(
+        `canvas[data-page-number="${pdfCurrentPage}"]`,
+        modalViewer
+      );
+
+      targetPage?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+
+      const indicator = $("[data-pdf-page]", modalViewer);
+
+      if (indicator) {
+        indicator.textContent =
+          `Halaman ${pdfCurrentPage} dari ${activePdfDocument.numPages}`;
+      }
+
+      $('[data-pdf-action="prev"]', modalViewer).disabled =
+        pdfCurrentPage <= 1;
+
+      $('[data-pdf-action="next"]', modalViewer).disabled =
+        pdfCurrentPage >= activePdfDocument.numPages;
+
+      return;
+    }
+
+    renderPdfViewer(
+      modal.querySelector("#modal-open-file")?.href,
+      modalTitle?.textContent || "Sertifikat"
+    );
   });
 
   const cleanupModal = () => {
@@ -720,7 +993,7 @@ if (certGrid) {
     }
   });
 
-  
+
   /* =====================================================
     CONTACT LINKS
     ===================================================== */
