@@ -265,9 +265,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateImageZoom = () => {
     const image = $(".certificate-preview-image", modalViewer);
     const zoomValue = $("#certificate-zoom-value", modalViewer);
+    const stage = $(".certificate-image-stage", modalViewer);
 
-    if (image) {
-      image.style.transform = `scale(${imageZoom})`;
+    if (image && stage && image.naturalWidth > 0) {
+      const availableWidth = Math.max(100, stage.clientWidth - 24);
+
+      // Ukuran awal gambar menyesuaikan area viewer.
+      const baseWidth = Math.min(
+        image.naturalWidth,
+        availableWidth
+      );
+
+      // Ukuran asli gambar mengikuti persentase zoom.
+      const finalWidth = baseWidth * imageZoom;
+
+      image.style.width = `${finalWidth}px`;
+      image.style.height = "auto";
     }
 
     if (zoomValue) {
@@ -345,6 +358,9 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
 
     const image = $(".certificate-preview-image", modalViewer);
+    image?.addEventListener("load", () => {
+      updateImageZoom();
+    });
 
     image?.addEventListener("error", () => {
       makeEmptyViewer({
@@ -364,6 +380,13 @@ document.addEventListener("DOMContentLoaded", () => {
     updateImageZoom();
   };
 
+  window.addEventListener("resize", () => {
+    if (!modal?.open) return;
+
+    if ($(".certificate-preview-image", modalViewer)) {
+      updateImageZoom();
+    }
+  });
 
   const renderPdfViewer = async (fileUrl, title) => {
     if (!modalViewer) return;
